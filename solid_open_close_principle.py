@@ -73,8 +73,14 @@ class PaymentCreditCard(Payment):
 
 class PaymentPaypal(Payment):
     def pay(self, order: Order, security_code: str) -> None:
-        print("Signing in to pypal service ...")
-        print(f"verify security code: {security_code}")
+        print("Signing in to paypal service ...")
+        # The following line breaks Liskov's principle since
+        # this child object expects email address but receives
+        # email address, so some dirty hack needs to be done that
+        # changes the expected behaviour and from now on these
+        # objects cannot be interchanged with each other without breaking
+        # the code
+        print(f"verify email address: {security_code}")
         order.status = "paid"
 
 
