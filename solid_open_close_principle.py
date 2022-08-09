@@ -65,7 +65,7 @@ class PaymentDebitCard(Payment):
 
 
 class PaymentCreditCard(Payment):
-    def pay_credit(self, order: Order, security_code: str) -> None:
+    def pay(self, order: Order, security_code: str) -> None:
         print("Processing a credit check ...")
         print(f"verify security code: {security_code}")
         order.status = "paid"

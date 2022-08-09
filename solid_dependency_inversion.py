@@ -1,28 +1,20 @@
 """
-The Liskov principle says that objects of a superclass shall be replaceable with objects of its subclasses
-without breaking the application i.e. you shall not dirty hack your subclass so that it won't
-break the functionality you receive from the parent class.
 
-1. Don't implement any stricter validation rules on input parameters than implemented by
-the parent class (should be the same or less).
+Dependency inversion says:
 
-2. The return value of a method of the subclass needs to comply with the same rules as the return value
-of the method of the superclass. (at least the same or more)
+Make classes dependent on interfaces or Abstract classes rather than concrete objects.
+This way you can pass in different types that all implement that behaviour without
+changing the existing code. So you will decouple the objects from each other.
 
-If you follow the above different kind of objects could be used interchangably but still won't break
-the code.
+Just like Liskov's substitution principle, DIP promotes usage of abstractions.
+The only difference is that LSP focuses on:
+Correcteness of the behaviour and following the contract when switching different sub types.
 
-Moral of the story: model your classes based on behaviours not on properties;
-model your data based on properties and not on behaviours.
+DIP focuses on:
+Decoupling objects so that they can easily be switched.
 
-Take a look at the PaymentPaypal, since this type of payment does not need
-the card's security code. It needs to hack that extra argument so that it can
-still work even though one has changed the behaviour of the parent (but forced to from the parent)
-
-One way to fix this is to use the security code outside of pay() method and accept it
-in the constructor.
-
-The other way would be to use composition instead of inheritence.
+In the example below let's say we have a separate kind of authorizer, preferably
+your classes shall be decoupled enough so that they can use a different authorization method.
 
 """
 
@@ -73,11 +65,44 @@ class Payment(ABC):
         pass
 
 
+class Authorizer(ABC):
+    @abstractmethod
+    def is_authorized(self) -> bool:
+        pass
+
+
+class SmsAuth(Authorizer):
+    def __init__(self) -> None:
+        self._authorized = False
+
+    def is_authorized(self) -> bool:
+        return self._authorized
+
+    def verify_sms_code(self, code) -> None:
+        print(f"Verifying the SMS code: {code}")
+        self._authorized = True
+
+
+class RobotAuth(Authorizer):
+    def __init__(self) -> None:
+        self._authorized = False
+
+    def is_authorized(self):
+        return self._authorized
+
+    def verify_not_robot(self) -> None:
+        print("processing that you are not a robot...")
+        self._authorized = True
+
+
 class PaymentDebitCard(Payment):
-    def __init__(self, security_code: str):
+    def __init__(self, security_code: str, authorizer: Authorizer):
         self._security_code: str = security_code
+        self._authorizer: SmsAuth = authorizer
 
     def pay(self, order: Order) -> None:
+        if not self._authorizer.is_authorized():
+            raise Exception("Authorization failed")
         print("Processing debit payment ...")
         print(f"verify security code: {self._security_code}")
         order.status = "paid"
@@ -94,10 +119,13 @@ class PaymentCreditCard(Payment):
 
 
 class PaymentPaypal(Payment):
-    def __init__(self, email_address: str):
+    def __init__(self, email_address: str, authorizer: Authorizer):
         self._email_address: str = email_address
+        self._authorizer: Authorizer = authorizer
 
     def pay(self, order: Order) -> None:
+        if not self._authorizer.is_authorized():
+            raise Exception("Authorization failed")
         print("Signing in to paypal service ...")
         print(f"verify email address: {self._email_address}")
         order.status = "paid"
@@ -110,8 +138,12 @@ def main():
     order_phone.add_item("Samsung", 1, 10000)
     order_car.add_item("Volvo", 1, 500000)
     order_chair.add_item("office", 2, 5000)
-    PaymentDebitCard("1234").pay(order_phone)
-    PaymentPaypal("alice@daemonico.com").pay(order_chair)
+    sms_auth = SmsAuth()
+    sms_auth.verify_sms_code("1234")
+    PaymentDebitCard("1234", sms_auth).pay(order_phone)
+    robot_auth = RobotAuth()
+    robot_auth.verify_not_robot()
+    PaymentPaypal("alice@daemonico.com", robot_auth).pay(order_chair)
     print(order_phone)
     print(order_chair)
     print(order_car)
